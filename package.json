@@ -1,0 +1,16 @@
+{
+  "name": "calcurse-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot that parses and handles calcurse events and todos",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.0.0",
+    "node-telegram-bot-api": "^0.30.0"
+  }
+}
