@@ -20,6 +20,13 @@ const completedTodoRegexp = /^\[(?<priority>\-\d)\](?<notehash>>[\dA-Za-z]+)*\s(
 
 let todos = []
 
+// TODO read file from git repo instead of fs
+// TODO setTimeout parse from git every 5000ms
+// TODO observable array notify on new
+// TODO create new todo
+// TODO read note from todo
+
+
 const parseTodoFile = async () => {
     let cnt;
     try {
@@ -57,23 +64,26 @@ const buildTodoString = (todos, completed) => {
 
 parseTodoFile()
 
+// echo
 bot.onText(/\/echo (.+)/, (msg, match) => {
     if(msg.chat.id != privchatid) return
-    console.log("Message from: " + msg.chat.id)
     bot.sendMessage(msg.chat.id, match[1])
 })
 
-
+// Get a list of active todos
 bot.onText(/\/active/, (msg, match) => {
     if(msg.chat.id != privchatid) return
-    console.log("Message from: " + msg.chat.id)
-    
-    bot.sendMessage(msg.chat.id, buildTodoString(todos, false))
+    parseTodoFile.then(_ => bot.sendMessage(msg.chat.id, buildTodoString(todos, false)))
 })
 
+// Get a list of completed todos
 bot.onText(/\/completed/, (msg, match) => {
     if(msg.chat.id != privchatid) return
-    console.log("Message from: " + msg.chat.id)
-    
-    bot.sendMessage(msg.chat.id, buildTodoString(todos, true))
+    parseTodoFile.then(_ => bot.sendMessage(msg.chat.id, buildTodoString(todos, true)))
+})
+
+// TODO mark todo as completed
+bot.onText(/\/mark (\d+)/, (msg, match) => {
+    if(msg.chat.id != privchatid) return
+    bot.sendMessage(msg.chat.id, "Not yet implemented")
 })
