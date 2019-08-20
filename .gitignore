@@ -89,3 +89,4 @@ typings/
 
 # Dotfiles repository 
 .tmp/
+.vscode/launch.json
