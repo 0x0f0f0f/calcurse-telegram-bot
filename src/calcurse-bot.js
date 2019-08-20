@@ -20,6 +20,32 @@ const buildTodoString = (todos, completed) => {
     return str
 }
 
+// Listen on sigpipe to parse the diff and detect new/deleted/completed todos
+process.on('SIGPIPE', async (signal) => {
+    let sent_msg = await bot.sendMessage(conf.privchatid, `Received ${signal}`)
+
+    await bot.editMessageText("Retrieving TODO file from git", {
+        chat_id: msg.chat.id,
+        message_id: sent_msg.message_id
+    })
+
+    try {
+        await parse.gitUpdate()
+    } catch (error) {
+        console.error(error)
+        await bot.editMessageText(`Error: ${error}`, {
+            chat_id: msg.chat.id,
+            message_id: sent_msg.message_id
+        })
+    }
+
+    //TODO parse diff
+    await bot.editMessageText("Parsing TODO file diff with last commit", {
+        chat_id: msg.chat.id,
+        message_id: sent_msg.message_id
+    })
+})
+
 // echo
 bot.onText(/\/echo (.+)/, (msg, match) => {
     if(msg.chat.id != conf.privchatid) return

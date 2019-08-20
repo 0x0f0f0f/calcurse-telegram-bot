@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# put this in your dotfiles directory
+
+while read oldrev newrev ref
+do
+    if [[ $ref =~ .*/master$ ]];
+    then
+        echo "Master ref received.  Deploying master branch to production..."
+        # git --work-tree=/home/cadet/dotfiles --git-dir=/srv/git/dotfiles.git checkout -f
+        # Send SIGPIPE to calcurse bot process
+        pkill -SIGPIPE -f "^node(.+)calcurse"
+    else
+        echo "Ref $ref successfully received.  Doing nothing: only the master branch may be deployed on this server."
+    fi
+done

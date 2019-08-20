@@ -4,7 +4,7 @@
   "description": "Telegram bot that parses and handles calcurse events and todos through a git (dotfiles) repository",
   "main": "src/bot.js",
   "scripts": {
-    "start": "node src/bot.js",
+    "start": "node src/calcurse-bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
