@@ -1,8 +1,8 @@
 /* eslint-disable eqeqeq */
 
-import TelegramBot from 'node-telegram-bot-api';
-import conf from '../config';
-import { gitUpdate, parseTodoFile } from './parse';
+const TelegramBot = require('node-telegram-bot-api');
+const conf = require('../config');
+const parse = require('./parse');
 
 // Create the bot
 const bot = new TelegramBot(conf.token, { polling: true });
@@ -15,36 +15,55 @@ const buildTodoString = (todos, completed) => {
   let count = 0;
   if (!todos) return 'ERROR Parsing';
   todos.filter((todo) => completed == todo.completed).forEach((todo) => {
-    str += `${count}: ${completed ? '' : `(${todo.priority})`} ${todo.text}\n`;
+    str += `${count}: ${completed ? '' : `[${todo.priority}]`} ${todo.text}\n`;
     count += 1;
   });
   return str;
 };
 
+// Remove note hash and mark '-' as completed
+const buildDiffTodoString = (alteredLines) => alteredLines
+  .map((line) => line.replace(/>[\dA-Za-z]+/, ' (NOTE CHANGED)')
+    .replace(/\[-/, 'COMPLETED: [')).join('\n');
+
 // Listen on sigpipe to parse the diff and detect new/deleted/completed todos
 process.on('SIGPIPE', async (signal) => {
   const sentMsg = await bot.sendMessage(conf.privchatid, `Received ${signal}`);
-
-  await bot.editMessageText('Retrieving TODO file from git', {
-    chat_id: conf.conf.privchatid,
+  const editMsgOptions = {
+    chat_id: conf.privchatid,
     message_id: sentMsg.message_id,
-  });
+  };
+
+  await bot.editMessageText('Retrieving TODO file from git', editMsgOptions);
 
   try {
-    await gitUpdate();
+    await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
   } catch (error) {
     console.error(error);
-    await bot.editMessageText(`Error: ${error}`, {
-      chat_id: conf.privchatid,
-      message_id: sentMsg.message_id,
-    });
+    await bot.editMessageText(`Error: ${error}`, editMsgOptions);
   }
 
   // TODO parse diff
-  await bot.editMessageText('Parsing TODO file diff with last commit', {
-    chat_id: conf.privchatid,
-    message_id: sentMsg.message_id,
+  await bot.editMessageText('Parsing TODO file diff with last commit', editMsgOptions);
+
+  const diffResult = await parse.parseTodoDiff(conf.tmpdirpath, conf.calcursepath);
+
+  if (diffResult.status !== 'modified') {
+    await bot.editMessageText('TODOs unaltered in latest commit', editMsgOptions);
+  }
+
+  const alteredLines = [];
+
+  diffResult.hunks.forEach((hunk) => {
+    hunk.lines.forEach((line) => {
+      // If first char of the diff line is not + o - ignore the line
+      if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
+    });
   });
+
+  console.dir(buildDiffTodoString(alteredLines));
+
+  bot.editMessageText(`TODOS EDITED IN LATEST COMMIT:\n${buildDiffTodoString(alteredLines)}`, editMsgOptions);
 });
 
 // echo
@@ -62,7 +81,7 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
   });
 
   try {
-    await gitUpdate();
+    await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
   } catch (error) {
     console.error(error);
     await bot.editMessageText(`Error: ${error}`, {
@@ -78,7 +97,7 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
 
   let todos;
   try {
-    todos = await parseTodoFile();
+    todos = await parse.parseTodoFile(conf.tmpdirpath, conf.calcursepath);
   } catch (error) {
     await bot.editMessageText(`Error: ${error}`, {
       chat_id: msg.chat.id,
@@ -93,7 +112,7 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
 });
 
 // TODO mark todo as completed
-bot.onText(/\/mark (\d+)/, (msg, match) => {
+bot.onText(/\/mark (\d+)/, (msg) => {
   if (msg.chat.id != conf.conf.privchatid) return;
   bot.sendMessage(msg.chat.id, 'Not yet implemented');
 });
