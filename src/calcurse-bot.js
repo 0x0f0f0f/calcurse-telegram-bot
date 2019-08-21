@@ -48,7 +48,7 @@ process.on('SIGPIPE', async (signal) => {
 
   const diffResult = await parse.parseTodoDiff(conf.tmpdirpath, conf.calcursepath);
 
-  if (diffResult.status !== 'modified') {
+  if (!diffResult || diffResult.status !== 'modified') {
     await bot.editMessageText('TODOs unaltered in latest commit', editMsgOptions);
   }
 
