@@ -49,7 +49,7 @@ process.on('SIGPIPE', async (signal) => {
   const diffResult = await parse.parseTodoDiff(conf.tmpdirpath, conf.calcursepath);
 
   if (!diffResult || diffResult.status !== 'modified') {
-    await bot.editMessageText('TODOs unaltered in latest commit', editMsgOptions);
+    await bot.deleteMessage(conf.privchatid, sentMsg.message_id);
   }
 
   const alteredLines = [];
