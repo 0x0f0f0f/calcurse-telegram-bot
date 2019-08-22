@@ -1,11 +1,19 @@
 # Calcurse Telegram Bot
 
-A small Telegram bot I'm writing to watch a todo file in my dotfiles repo and notify me whenever there's 
+A small Telegram bot to parse and manage [calcurse](https://calcurse.org) **todo** files and **appointments**.
+It expects to find calcurse's data directory in a git repository (I use this with my dotfile repository) which
+the bot will clone, and manage automatically.
+
+To get notifications when todos are pushed to the data repo, there's an example [git hook](https://www.digitalocean.com/community/tutorials/how-to-use-git-hooks-to-automate-development-and-deployment-tasks): `post-receive.sample` so that when the data git repository is received, 
+the bot will be notified with a `SIGPIPE` and a TODO diff will be generated, parsed and sent.
+
 
 # Roadmap
 
-- Handle creation/editing/marking todos
-- Handle appointments
+- [ ] Creating/editing/completing todos
+- [ ] Parse appointments
+- [x] Notify on new/deleted/completed todos
+- [x] Parse todos
 
 # Setup
 
