@@ -13,7 +13,7 @@ const bot = new TelegramBot(conf.token, { polling: true });
 const buildTodoString = (todos, completed) => {
   let str = completed ? 'COMPLETED\n' : 'ACTIVE:\n';
   let count = 0;
-  if (!todos) return 'ERROR Parsing';
+  if (!todos) return 'Error parsing';
   todos.filter((todo) => completed == todo.completed).forEach((todo) => {
     str += `${count}: ${completed ? '' : `[${todo.priority}]`} ${todo.text}\n`;
     count += 1;
@@ -44,8 +44,7 @@ process.on('SIGPIPE', async (signal) => {
   }
 
   // TODO parse diff
-  await bot.editMessageText('Parsing TODO file diff with last commit', editMsgOptions);
-
+  await bot.editMessageText('Parsing last commit TODO diff', editMsgOptions);
   const diffResult = await parse.parseTodoDiff(conf.tmpdirpath, conf.calcursepath);
 
   if (!diffResult || diffResult.status !== 'modified') {
@@ -63,7 +62,7 @@ process.on('SIGPIPE', async (signal) => {
 
   console.dir(buildDiffTodoString(alteredLines));
 
-  bot.editMessageText(`TODOS EDITED IN LATEST COMMIT:\n${buildDiffTodoString(alteredLines)}`, editMsgOptions);
+  bot.editMessageText(`TODOs edited in last commit:\n${buildDiffTodoString(alteredLines)}`, editMsgOptions);
 });
 
 // echo
@@ -72,9 +71,8 @@ bot.onText(/\/echo (.+)/, (msg, match) => {
   bot.sendMessage(msg.chat.id, match[1]);
 });
 
-// Get a list of active todos
+// Get a list of todos
 bot.onText(/\/(active|completed)/, async (msg, match) => {
-  console.dir(match[1]);
   if (msg.chat.id != conf.privchatid) return;
   const sentMsg = await bot.sendMessage(msg.chat.id, 'Retrieving TODO file from git', {
     reply_to_message_id: msg.message_id,
@@ -97,7 +95,7 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
 
   let todos;
   try {
-    todos = await parse.parseTodoFile(conf.tmpdirpath, conf.calcursepath);
+    todos = await parse.getTodoArray(conf.tmpdirpath, conf.calcursepath);
   } catch (error) {
     await bot.editMessageText(`Error: ${error}`, {
       chat_id: msg.chat.id,
@@ -111,8 +109,23 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
   });
 });
 
+// TODO add todo
+bot.onText(/\/add (\d+)\s+(.*)/, async (msg, match) => {
+  if (msg.chat.id != conf.privchatid) return;
+  try {
+    await parse.addTodo(conf.tmpdirpath, conf.calcursepath,
+      match[2], parseInt(match[1], 10));
+  } catch (err) {
+    bot.sendMessage(msg.chat.id, `Error: ${err}`);
+    return;
+  }
+
+  bot.sendMessage(msg.chat.id, 'TODO added');
+});
+
+
 // TODO mark todo as completed
 bot.onText(/\/mark (\d+)/, (msg) => {
-  if (msg.chat.id != conf.conf.privchatid) return;
+  if (msg.chat.id != conf.privchatid) return;
   bot.sendMessage(msg.chat.id, 'Not yet implemented');
 });

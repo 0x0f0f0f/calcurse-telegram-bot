@@ -12,6 +12,7 @@ the bot will be notified with a `SIGPIPE` and a TODO diff will be generated, par
 
 - [ ] Creating/editing/completing todos
 - [ ] Parse appointments
+- [ ] Read notes
 - [x] Notify on new/deleted/completed todos
 - [x] Parse todos
 
