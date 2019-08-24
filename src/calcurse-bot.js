@@ -113,8 +113,12 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
 bot.onText(/\/add (\d+)\s+(.*)/, async (msg, match) => {
   if (msg.chat.id != conf.privchatid) return;
   try {
-    await parse.addTodo(conf.tmpdirpath, conf.calcursepath,
-      match[2], parseInt(match[1], 10));
+    await parse.addTodo(conf.tmpdirpath, conf.calcursepath, {
+      priority: parseInt(match[1], 10),
+      text: match[2],
+      completed: false,
+      notehash: null,
+    });
   } catch (err) {
     bot.sendMessage(msg.chat.id, `Error: ${err}`);
     return;

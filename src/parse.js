@@ -48,6 +48,29 @@ async function gitUpdate(tmpdirpath, gitrepourl) {
   }
 }
 
+// Create a commit and push it to the master branch
+async function gitPushTodos(tmpdirpath, calcursepath, commitmsg) {
+  // Add to git
+  const { stderr } = await exec(`git add ${path.join(calcursepath, 'todo')}`, { cwd: tmpdirpath });
+  if (stderr) {
+    console.error(stderr);
+    throw new Error('Error while adding TODO file to git repo');
+  }
+
+  // Commit change
+  const { stderr1 } = await exec(`git commit -m "${commitmsg}"`, { cwd: tmpdirpath });
+  if (stderr1) {
+    console.error(stderr1);
+    throw new Error('Error while committing TODO file to git repo');
+  }
+
+  // Push changes
+  const { stderr2 } = await exec(`git push -u origin master`, { cwd: tmpdirpath });
+  if (stderr2) {
+    console.error(stderr2);
+    throw new Error('Error while committing TODO file to git repo');
+  }
+}
 
 async function parseTodoFile(tmpdirpath, calcursepath) {
   const todos = new Map();
@@ -87,19 +110,22 @@ async function parseTodoDiff(tmpdirpath, calcursepath) {
   return result[0];
 }
 
-async function addTodo(tmpdirpath, calcursepath, text, priority) {
+async function addTodo(tmpdirpath, calcursepath, tobj) {
   if (!fs.existsSync(tmpdirpath)) throw new Error('git repository folder not found');
-  if (priority < 0 || priority > 9) throw new Error('priority must be between 0 and 9');
-  // TODO add todo
-  marshalTodo({
-    priority, text, completed: false, notehash: null,
-  });
+  if (tobj.priority < 0 || tobj.priority > 9) throw new Error('priority must be between 0 and 9');
+  
+  const todostr = marshalTodo(tobj);
+  
+  // TODO find line number where to insert todo in file
 
-  const { stderr } = await exec(`git add ${path.join(calcursepath, 'todo')}`, { cwd: tmpdirpath });
-  if (stderr) {
-    console.error(stderr);
-    throw new Error('Error while diffing TODO file');
-  }
+  const lineNumber = 0;
+
+  const cnt = (await fs.promises.readFile(path.join(tmpdirpath, calcursepath, 'todo'), 'utf8')).toString().split('\n');
+
+  cnt.splice(lineNumber, 0, marshalTodo);
+
+  await fs.promises.writeFile(path.join(calcursepath, 'todo'), cnt.join('\n'));
+  await gitPushTodos(tmpdirpath, calcursepath, 'Todo added by bot');
 }
 
 async function markTodo(tmpdirpath, calcursepath, todoline) {
