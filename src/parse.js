@@ -30,49 +30,6 @@ function marshalTodo(t) {
   return `[${t.completed ? '-' : ''}${t.priority}]${t.notehash != null ? `>${t.notehash}` : ''} ${t.text}`;
 }
 
-async function gitUpdate(tmpdirpath, gitrepourl) {
-  if (fs.existsSync(tmpdirpath)) {
-    const { stderr } = await exec('git pull', { cwd: tmpdirpath });
-    if (stderr) {
-      console.error(stderr);
-      throw new Error('Error while pulling git repo');
-    }
-    console.log('Successfully pulled git repo');
-  } else {
-    const { stderr } = await exec(`git clone ${gitrepourl} ${tmpdirpath}`);
-    if (stderr) {
-      console.error(stderr);
-      throw new Error('Error while cloning git repo');
-    }
-    console.log('Successfully cloned git repo');
-  }
-}
-
-// Create a commit and push it to the master branch
-async function gitPushTodos(tmpdirpath, calcursepath, commitmsg) {
-  // Add to git
-  const { stderr } = await exec(`git add ${path.join(calcursepath, 'todo')}`, { cwd: tmpdirpath });
-  if (stderr) {
-    console.error(stderr);
-    throw new Error('Error while adding TODO file to git repo');
-  }
-
-  // Commit change
-  const { stderr1 } = await exec(`git commit -m "${commitmsg}"`, { cwd: tmpdirpath });
-  if (stderr1) {
-    console.error(stderr1);
-    throw new Error('Error while committing TODO file to git repo');
-  }
-
-  // Push changes
-  const { stderr2 } = await exec(`git push -u origin master`, { cwd: tmpdirpath });
-  if (stderr2) {
-    console.error(stderr2);
-    throw new Error('Error while committing TODO file to git repo');
-  }
-
-  console.log('Successfully pushed new todos to git repo');
-}
 
 async function parseTodoFile(tmpdirpath, calcursepath) {
   const todos = new Map();
@@ -149,8 +106,6 @@ async function markTodo(tmpdirpath, calcursepath, todoline) {
 }
 
 module.exports = {
-  gitUpdate,
-  gitPushTodos,
   parseTodoFile,
   parseTodoDiff,
   getTodoArray,

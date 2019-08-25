@@ -1,8 +1,10 @@
 /* eslint-disable eqeqeq */
 
 const TelegramBot = require('node-telegram-bot-api');
+const path = require('path');
 const conf = require('../config');
 const parse = require('./parse');
+const git = require('./git');
 
 // Create the bot
 const bot = new TelegramBot(conf.token, { polling: true });
@@ -36,7 +38,7 @@ process.on('SIGPIPE', async (signal) => {
   await bot.editMessageText('Retrieving TODO file from git', editMsgOptions);
 
   try {
-    await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
+    await git.cloneOrPull(conf.gitrepourl, conf.tmpdirpath);
   } catch (err) {
     console.error(err);
     await bot.editMessageText(`${err}`, editMsgOptions);
@@ -82,7 +84,7 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
   };
 
   try {
-    await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
+    await git.cloneOrPull(conf.gitrepourl, conf.tmpdirpath);
   } catch (err) {
     console.error(err);
     await bot.editMessageText(`${err}`, editMsgOptions);
@@ -109,7 +111,7 @@ bot.onText(/\/add (\d+)\s+(.*)/, async (msg, match) => {
   if (msg.chat.id != conf.privchatid) return;
   try {
     // Pull
-    await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
+    await git.cloneOrPull(conf.gitrepourl, conf.tmpdirpath);
     // Add new todo
     await parse.addTodo(conf.tmpdirpath, conf.calcursepath, {
       priority: parseInt(match[1], 10),
@@ -118,6 +120,9 @@ bot.onText(/\/add (\d+)\s+(.*)/, async (msg, match) => {
       notehash: null,
     });
     // Add, commit and push
+    await git.add(path.join(conf.calcursepath, 'todo'), conf.tmpdirpath);
+    await git.commit('Todo added by bot', conf.tmpdirpath);
+    await git.push(conf.tmpdirpath, 'master');
     await parse.gitPushTodos(conf.tmpdirpath, conf.calcursepath, 'Todo added by bot');
   } catch (err) {
     console.error(err);
