@@ -7,7 +7,6 @@ const parse = require('./parse');
 // Create the bot
 const bot = new TelegramBot(conf.token, { polling: true });
 
-// TODO create new todo
 // TODO read note from todo
 
 const buildTodoString = (todos, completed) => {
@@ -38,9 +37,9 @@ process.on('SIGPIPE', async (signal) => {
 
   try {
     await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
-  } catch (error) {
-    console.error(error);
-    await bot.editMessageText(`Error: ${error}`, editMsgOptions);
+  } catch (err) {
+    console.error(err);
+    await bot.editMessageText(`${err}`, editMsgOptions);
   }
 
   // TODO parse diff
@@ -77,15 +76,16 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
   const sentMsg = await bot.sendMessage(msg.chat.id, 'Retrieving TODO file from git', {
     reply_to_message_id: msg.message_id,
   });
+  const editMsgOptions = {
+    chat_id: conf.privchatid,
+    message_id: sentMsg.message_id,
+  };
 
   try {
     await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
-  } catch (error) {
-    console.error(error);
-    await bot.editMessageText(`Error: ${error}`, {
-      chat_id: msg.chat.id,
-      message_id: sentMsg.message_id,
-    });
+  } catch (err) {
+    console.error(err);
+    await bot.editMessageText(`${err}`, editMsgOptions);
   }
 
   await bot.editMessageText('Parsing TODO file', {
@@ -96,31 +96,32 @@ bot.onText(/\/(active|completed)/, async (msg, match) => {
   let todos;
   try {
     todos = await parse.getTodoArray(conf.tmpdirpath, conf.calcursepath);
-  } catch (error) {
-    await bot.editMessageText(`Error: ${error}`, {
-      chat_id: msg.chat.id,
-      message_id: sentMsg.message_id,
-    });
+  } catch (err) {
+    console.error(err);
+    await bot.editMessageText(`${err}`, editMsgOptions);
   }
 
-  await bot.editMessageText(buildTodoString(todos, match[1] == 'completed'), {
-    chat_id: msg.chat.id,
-    message_id: sentMsg.message_id,
-  });
+  await bot.editMessageText(buildTodoString(todos, match[1] == 'completed'), editMsgOptions);
 });
 
 // TODO add todo
 bot.onText(/\/add (\d+)\s+(.*)/, async (msg, match) => {
   if (msg.chat.id != conf.privchatid) return;
   try {
+    // Pull
+    await parse.gitUpdate(conf.tmpdirpath, conf.gitrepourl);
+    // Add new todo
     await parse.addTodo(conf.tmpdirpath, conf.calcursepath, {
       priority: parseInt(match[1], 10),
       text: match[2],
       completed: false,
       notehash: null,
     });
+    // Add, commit and push
+    await parse.gitPushTodos(conf.tmpdirpath, conf.calcursepath, 'Todo added by bot');
   } catch (err) {
-    bot.sendMessage(msg.chat.id, `Error: ${err}`);
+    console.error(err);
+    bot.sendMessage(msg.chat.id, `${err}`);
     return;
   }
 

@@ -10,9 +10,10 @@ the bot will be notified with a `SIGPIPE` and a TODO diff will be generated, par
 
 # Roadmap
 
-- [ ] Creating/editing/completing todos
+- [ ] editing/completing todos
 - [ ] Parse appointments
 - [ ] Read notes
+- [ ] Create new todo
 - [x] Notify on new/deleted/completed todos
 - [x] Parse todos
 
