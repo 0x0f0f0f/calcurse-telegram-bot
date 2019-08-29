@@ -1,53 +1,72 @@
 const util = require('util');
 const fs = require('fs');
 const exec = util.promisify(require('child_process').exec);
+const wtd = require('what-the-diff');
 
-async function cloneOrPull(gitrepourl, tmpdirpath) {
-  if (fs.existsSync(tmpdirpath)) {
-    const { stderr } = await exec('git pull', { cwd: tmpdirpath });
+async function cloneOrPull(gitrepourl, gitworkdir) {
+  if (fs.existsSync(gitworkdir)) {
+    const { stderr } = await exec('git pull', { cwd: gitworkdir });
     if (stderr) {
       console.error(stderr);
       throw new Error('Error while pulling git repo');
     }
     console.log('Successfully pulled git repo');
   } else {
-    const { stderr } = await exec(`git clone ${gitrepourl} ${tmpdirpath}`);
+    const { stderr } = await exec(`git clone ${gitrepourl} ${gitworkdir}`);
     if (stderr) {
       console.error(stderr);
       throw new Error('Error while cloning git repo');
     }
-    console.log('Successfully cloned git repo');
   }
 }
 
-async function add(filepath, repopath) {
+async function add(gitworkdir, filepath) {
   // Add to git
-  const { stderr } = await exec(`git add ${filepath}`, { cwd: repopath });
+  const { stderr } = await exec(`git add ${filepath}`, { cwd: gitworkdir });
   if (stderr) {
     console.error(stderr);
     throw new Error('Error while adding TODO file to git repo');
   }
 }
 
-async function commit(commitmsg, repopath) {
-  // Commit change
-  const { stderr } = await exec(`git commit -m "${commitmsg}"`, { cwd: repopath });
+// Commit change
+async function commit(gitworkdir, commitmsg) {
+  const { stderr } = await exec(`git commit -m "${commitmsg}"`, { cwd: gitworkdir });
   if (stderr) {
     console.error(stderr);
-    throw new Error('Error while committing TODO file to git repo');
+    throw new Error('Error while committing');
   }
 }
 
 // Create a commit and push it to the master branch
-async function push(repopath, branch) {
+async function push(gitworkdir, branch) {
   // Push changes
-  const { stderr } = await exec(`git push -u origin ${branch}`, { cwd: repopath });
+  const { stderr } = await exec(`git push -u origin ${branch}`, { cwd: gitworkdir });
   if (stderr) {
     console.error(stderr);
-    throw new Error('Error while committing TODO file to git repo');
+    throw new Error('Error pushing repository');
   }
 
-  console.log('Successfully pushed new todos to git repo');
+  console.log('Successfully pushed git repository');
+}
+
+// Parse a diff
+async function parseLastCommitDiff(gitworkdir, filepath) {
+  if (!fs.existsSync(gitworkdir)) throw new Error('git repository folder not found');
+  const { stdout, stderr } = await exec(`git --no-pager diff --no-color HEAD^^ -- ${filepath} ${filepath}`,
+    { cwd: gitworkdir });
+  if (stderr) {
+    console.error(stderr);
+    throw new Error(`Error while diffing file ${filepath}`);
+  }
+  let result;
+  try {
+    result = wtd.parse(stdout);
+  } catch (err) {
+    console.error(err);
+    throw new Error(err);
+  }
+  return result[0];
 }
 
 module.exports = {
@@ -55,4 +74,5 @@ module.exports = {
   add,
   commit,
   push,
+  parseLastCommitDiff,
 };
