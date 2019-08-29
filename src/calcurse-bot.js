@@ -39,11 +39,12 @@ const buildDiffTodoString = (alteredLines) => alteredLines
     .replace(/\[-/, 'COMPLETED: [')).join('\n');
 
 const buildDiffAptsString = (alteredLines) => alteredLines
-  .map((line) => line.replace(/>[\dA-Za-z]+/, ' (NOTE CHANGED)'));
+  .map((line) => line.replace(/>[\dA-Za-z]+/, ' (NOTE CHANGED)')).join('\n');
 
 
 // Listen on sigpipe to parse the diff and detect new/deleted/completed todos and appointments
 process.on('SIGPIPE', async (signal) => {
+  let alteredLines = [];
   try {
     let sentMsg = await bot.sendMessage(conf.privchatid, `Received ${signal}`);
     let editOpts = {
@@ -58,18 +59,18 @@ process.on('SIGPIPE', async (signal) => {
     let diffResult = await git.parseLastCommitDiff(conf.gitworkdir, todoFilePath);
     if (!diffResult || diffResult.status !== 'modified') {
       await bot.deleteMessage(conf.privchatid, sentMsg.message_id);
-    }
-    let alteredLines = [];
-    diffResult.hunks.forEach((hunk) => {
-      hunk.lines.forEach((line) => {
-        // If first char of the diff line is not + or - ignore the line
-        if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
+    } else {
+      diffResult.hunks.forEach((hunk) => {
+        hunk.lines.forEach((line) => {
+          // If first char of the diff line is not + or - ignore the line
+          if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
+        });
       });
-    });
-    await bot.editMessageText(`TODOs edited in last commit:\n${buildDiffTodoString(alteredLines)}`, editOpts);
+      await bot.editMessageText(`TODOs edited in last commit:\n${buildDiffTodoString(alteredLines)}`, editOpts);
+    }
 
     // Parse apts diff
-    sentMsg = await bot.sendMessage('Parsing last commit diff in apts file');
+    sentMsg = await bot.sendMessage(conf.privchatid, 'Parsing last commit diff in apts file');
     editOpts = {
       chat_id: conf.privchatid,
       message_id: sentMsg.message_id,
@@ -77,15 +78,16 @@ process.on('SIGPIPE', async (signal) => {
     diffResult = await git.parseLastCommitDiff(conf.gitworkdir, aptsFilePath);
     if (!diffResult || diffResult.status !== 'modified') {
       await bot.deleteMessage(conf.privchatid, sentMsg.message_id);
-    }
-    alteredLines = [];
-    diffResult.hunks.forEach((hunk) => {
-      hunk.lines.forEach((line) => {
-        // If first char of the diff line is not + or - ignore the line
-        if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
+    } else {
+      alteredLines = [];
+      diffResult.hunks.forEach((hunk) => {
+        hunk.lines.forEach((line) => {
+          // If first char of the diff line is not + or - ignore the line
+          if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
+        });
       });
-    });
-    await bot.editMessageText(`Appointments edited in last commit:\n${buildDiffAptsString(alteredLines)}`, editOpts);
+      await bot.editMessageText(`Appointments edited in last commit:\n${buildDiffAptsString(alteredLines)}`, editOpts);
+    }
   } catch (err) {
     console.error(err);
     await bot.sendMessage(`${err}`);

@@ -1,4 +1,5 @@
 const util = require('util');
+const path = require('path');
 const fs = require('fs');
 const exec = util.promisify(require('child_process').exec);
 const wtd = require('what-the-diff');
@@ -51,7 +52,8 @@ async function push(gitworkdir, branch) {
 }
 
 // Parse a diff
-async function parseLastCommitDiff(gitworkdir, filepath) {
+async function parseLastCommitDiff(gitworkdir, file) {
+  const filepath = path.relative(gitworkdir, file);
   if (!fs.existsSync(gitworkdir)) throw new Error('git repository folder not found');
   const { stdout, stderr } = await exec(`git --no-pager diff --no-color HEAD^^ -- ${filepath} ${filepath}`,
     { cwd: gitworkdir });
@@ -66,7 +68,7 @@ async function parseLastCommitDiff(gitworkdir, filepath) {
     console.error(err);
     throw new Error(err);
   }
-  return result[0];
+  return result.length > 0 ? result[0] : null;
 }
 
 module.exports = {
