@@ -6,14 +6,14 @@ const wtd = require('what-the-diff');
 
 async function cloneOrPull(gitrepourl, gitworkdir) {
   if (fs.existsSync(gitworkdir)) {
-    const { stderr } = await exec('git pull', { cwd: gitworkdir });
+    const { stderr } = await exec('git pull -q', { cwd: gitworkdir });
     if (stderr) {
       console.error(stderr);
       throw new Error('Error while pulling git repo');
     }
     console.log('Successfully pulled git repo');
   } else {
-    const { stderr } = await exec(`git clone ${gitrepourl} ${gitworkdir}`);
+    const { stderr } = await exec(`git clone -q ${gitrepourl} ${gitworkdir}`);
     if (stderr) {
       console.error(stderr);
       throw new Error('Error while cloning git repo');
