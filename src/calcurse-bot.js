@@ -41,44 +41,44 @@ const buildDiffTodoString = (alteredLines) => alteredLines
 const buildDiffAptsString = (alteredLines) => alteredLines
   .map((line) => line.replace(/>[\dA-Za-z]+/, ' (NOTE CHANGED)')).join('\n');
 
+async function pollDueAppointments() {
+  try {
+    await git.cloneOrPull(conf.gitrepourl, conf.gitworkdir);
+    const now = new Date(Date.now());
+    const apts = await parse.getEntityArray(aptsFilePath, Apt);
+    const dueToday = apts.filter((a) => a.isSameDay(now));
+    const dueTomorrow = apts.filter((a) => a.isTomorrow());
+
+    if (dueToday.length === 0 && dueTomorrow.length === 0) return;
+    await bot.sendMessage(conf.privchatid, `Appointments due today:\n${buildAptsString(dueToday)}\n\nDue tomorrow:\n${buildAptsString(dueTomorrow)}`);
+  } catch (err) {
+    console.error(err);
+    await bot.sendMessage(`${err}`);
+  }
+}
 
 // Listen on sigpipe to parse the diff and detect new/deleted/completed todos and appointments
 process.on('SIGPIPE', async (signal) => {
   let alteredLines = [];
   try {
-    let sentMsg = await bot.sendMessage(conf.privchatid, `Received ${signal}`);
-    let editOpts = {
-      chat_id: conf.privchatid,
-      message_id: sentMsg.message_id,
-    };
-    await bot.editMessageText('Pulling from git', editOpts);
+    await bot.sendMessage(conf.privchatid, `Received ${signal}`);
     await git.cloneOrPull(conf.gitrepourl, conf.gitworkdir);
 
     // Parse todo diff
-    await bot.editMessageText('Parsing last commit diff in todo file', editOpts);
     let diffResult = await git.parseLastCommitDiff(conf.gitworkdir, todoFilePath);
-    if (!diffResult || diffResult.status !== 'modified') {
-      await bot.deleteMessage(conf.privchatid, sentMsg.message_id);
-    } else {
+    if (diffResult && diffResult.status === 'modified') {
       diffResult.hunks.forEach((hunk) => {
         hunk.lines.forEach((line) => {
           // If first char of the diff line is not + or - ignore the line
           if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
         });
       });
-      await bot.editMessageText(`TODOs edited in last commit:\n${buildDiffTodoString(alteredLines)}`, editOpts);
+      await bot.sendMessage(conf.privchatid, `TODOs edited in last commit:\n${buildDiffTodoString(alteredLines)}`);
     }
 
     // Parse apts diff
-    sentMsg = await bot.sendMessage(conf.privchatid, 'Parsing last commit diff in apts file');
-    editOpts = {
-      chat_id: conf.privchatid,
-      message_id: sentMsg.message_id,
-    };
     diffResult = await git.parseLastCommitDiff(conf.gitworkdir, aptsFilePath);
-    if (!diffResult || diffResult.status !== 'modified') {
-      await bot.deleteMessage(conf.privchatid, sentMsg.message_id);
-    } else {
+    if (diffResult && diffResult.status === 'modified') {
       alteredLines = [];
       diffResult.hunks.forEach((hunk) => {
         hunk.lines.forEach((line) => {
@@ -86,26 +86,29 @@ process.on('SIGPIPE', async (signal) => {
           if (line[0] == '-' || line[0] == '+') alteredLines.push(line);
         });
       });
-      await bot.editMessageText(`Appointments edited in last commit:\n${buildDiffAptsString(alteredLines)}`, editOpts);
+      await bot.sendMessage(conf.privchatid, `Appointments edited in last commit:\n${buildDiffAptsString(alteredLines)}`);
     }
+
+    pollDueAppointments();
   } catch (err) {
     console.error(err);
     await bot.sendMessage(`${err}`);
   }
 });
 
+
+pollDueAppointments();
+setInterval(pollDueAppointments, conf.dueappointmentspollfreq);
+
 // Get a list of todos
 bot.onText(/\/(active|completed)/, async (msg, match) => {
   if (msg.chat.id != conf.privchatid) return;
   try {
-    const sentMsg = await bot.sendMessage(msg.chat.id, 'Retrieving file from git', {
+    await git.cloneOrPull(conf.gitrepourl, conf.gitworkdir);
+    const todos = await parse.getEntityArray(todoFilePath, Todo);
+    await bot.sendMessage(msg.chat.id, buildTodoString(todos, match[1] == 'completed'), {
       reply_to_message_id: msg.message_id,
     });
-    const editOpts = { chat_id: conf.privchatid, message_id: sentMsg.message_id };
-    await git.cloneOrPull(conf.gitrepourl, conf.gitworkdir);
-    await bot.editMessageText('Parsing todo file', editOpts);
-    const todos = await parse.getEntityArray(todoFilePath, Todo);
-    await bot.editMessageText(buildTodoString(todos, match[1] == 'completed'), editOpts);
   } catch (err) {
     console.error(err);
     await bot.sendMessage(msg.chat.id, `${err}`);
@@ -145,22 +148,22 @@ bot.onText(/\/mark (\d+)/, (msg) => {
   bot.sendMessage(msg.chat.id, 'Not yet implemented');
 });
 
-bot.onText(/\/(today|now|week)/, async (msg, match) => {
+// Get appointments
+bot.onText(/\/(today|tomorrow|now|week)/, async (msg, match) => {
   if (msg.chat.id != conf.privchatid) return;
   try {
-    const sentMsg = await bot.sendMessage(msg.chat.id, 'Retrieving file from git', {
-      reply_to_message_id: msg.message_id,
-    });
-    const editOpts = { chat_id: conf.privchatid, message_id: sentMsg.message_id };
     const now = new Date(Date.now());
     await git.cloneOrPull(conf.gitrepourl, conf.gitworkdir);
-    await bot.editMessageText('Parsing apts file', editOpts);
     let apts = await parse.getEntityArray(aptsFilePath, Apt);
 
     if (match[1] === 'today') apts = apts.filter((a) => a.isSameDay(now));
+    if (match[1] === 'tomorrow') apts = apts.filter((a) => a.isTomorrow());
     if (match[1] === 'now') apts = apts.filter((a) => a.inEventRange(now));
+    if (match[1] === 'week') apts = apts.filter((a) => a.isSameWeek(now));
 
-    await bot.editMessageText(buildAptsString(apts), editOpts);
+    await bot.sendMessage(msg.chat.id, buildAptsString(apts), {
+      reply_to_message_id: msg.message_id,
+    });
   } catch (err) {
     console.error(err);
     bot.sendMessage(msg.chat.id, `${err}`);

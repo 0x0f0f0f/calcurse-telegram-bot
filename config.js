@@ -9,4 +9,6 @@ module.exports = {
   calcursepath: process.env.CALCURSEPATH,
   gitrepourl: process.env.GITREPOURL,
   gitworkdir: path.join(__dirname, 'tmp'),
+  // Every 6 hours (in  ms) poll and display appointments today or tomorrow
+  dueappointmentspollfreq: 21600000,
 };
